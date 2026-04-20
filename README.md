@@ -70,6 +70,26 @@ The files displayed depend on setting `local-history.maxDisplay` to see more, us
     local-history.compareToActive // compare active file with another version in history
     local-history.compareToPrevious // compare a version in history with its previous version
 
+## Pack the extension
+
+To create a `.vsix` package for installation or publishing:
+
+1. Install dependencies:
+
+    npm install
+
+2. Package the extension with `vsce`:
+
+    npx @vscode/vsce package
+
+This creates a `.vsix` file in the project root.
+
+Notes:
+- The existing `vscode:prepublish` script runs automatically during packaging, so the extension is compiled before the `.vsix` is produced.
+- If you want a custom output file name, use:
+
+    npx @vscode/vsce package -o local-history.vsix
+
 ## Note
 When .history folder is stored in workspace, you can add a "files.exclude".
 This hides .history folder and avoids some issues. (e.g. csproj extension)<BR>
