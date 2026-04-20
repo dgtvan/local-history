@@ -17,6 +17,7 @@
         "url": "https://github.com/zabel-xyz/local-history/issues"
     },
     "keywords": [
+        
         "local",
         "history",
         "save",
@@ -158,69 +159,69 @@
             "view/title": [
                 {
                     "command": "treeLocalHistory.refresh",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation@1"
                 },
                 {
                     "command": "treeLocalHistory.more",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation@2"
                 },
                 {
                     "command": "treeLocalHistory.deleteAll",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation@3"
                 },
                 {
                     "command": "treeLocalHistory.forCurrentFile",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation_filter"
                 },
                 {
                     "command": "treeLocalHistory.forAll",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation_filter"
                 },
                 {
                     "command": "treeLocalHistory.forSpecificFile",
-                    "when": "view == treeLocalHistory || view == treeLocalHistoryExplorer",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer",
                     "group": "navigation_filter"
                 }
             ],
             "view/item/context": [
                 {
                     "command": "treeLocalHistory.showSideEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "1_tree-navigation@1"
                 },
                 {
                     "command": "treeLocalHistory.compareToCurrentEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "2_tree-compare@1"
                 },
                 {
                     "command": "treeLocalHistory.selectEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "2_tree-compare@2"
                 },
                 {
                     "command": "treeLocalHistory.compareEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "2_tree-compare@3"
                 },
                 {
                     "command": "treeLocalHistory.deleteEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "3_tree-action@1"
                 },
                 {
                     "command": "treeLocalHistory.deleteEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryGrp || view == treeLocalHistoryExplorer && viewItem == localHistoryGrp",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryGrp || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryGrp",
                     "group": "3_tree-action@1"
                 },
                 {
                     "command": "treeLocalHistory.restoreEntry",
-                    "when": "view == treeLocalHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && viewItem == localHistoryItem",
+                    "when": "view == treeLocalHistory && local-history:treeLocation == localHistory && viewItem == localHistoryItem || view == treeLocalHistoryExplorer && local-history:treeLocation == explorer && viewItem == localHistoryItem",
                     "group": "4_tree-action@1"
                 }
             ]
@@ -278,7 +279,7 @@
                 },
                 "local-history.treeLocation": {
                     "type": "string",
-                    "default": "explorer",
+                    "default": "localHistory",
                     "enum": [
                         "explorer",
                         "localHistory"
