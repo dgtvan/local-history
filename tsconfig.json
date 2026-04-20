@@ -1,14 +1,19 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
-		"target": "es6",
+		"target": "es2020",
         "lib": [
-            "es6"
+            "es2020"
         ],
+		"types": [
+			"node",
+			"vscode"
+		],
+		"strict": false,
+		"skipLibCheck": true,
 		"outDir": "out",
 		"rootDir": ".",
-		"sourceMap": true,
-		"watch": false
+		"sourceMap": true
 	},
 	"exclude": [
 		"node_modules",

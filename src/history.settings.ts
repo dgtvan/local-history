@@ -15,11 +15,11 @@ const enum EHistoryTreeLocation {
 }
 
 export interface IHistorySettings {
-    folder: vscode.Uri;
+    folder?: vscode.Uri;
     daysLimit: number;
     saveDelay: number;
     maxDisplay: number;
-    dateLocale: string;
+    dateLocale?: string;
     exclude: string[];
     enabled: boolean;
     historyPath: string;
@@ -45,7 +45,7 @@ export class HistorySettings {
     public get(file: vscode.Uri): IHistorySettings {
 
         // Find workspaceFolder corresponding to file
-        let folder;
+        let folder: vscode.Uri | undefined;
         // const wsFolder = vscode.workspace.getWorkspaceFolder(file);
         // temporary code to resolve bug https://github.com/Microsoft/vscode/issues/36221
         const wsFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(file.fsPath));
@@ -90,15 +90,15 @@ export class HistorySettings {
        saved in vscode.getworkspacefolder\.history\<relative>
        (no workspacefolder => not saved)
     */
-    private read(workspacefolder: vscode.Uri, file: vscode.Uri, ws: vscode.WorkspaceFolder): IHistorySettings {
+    private read(workspacefolder: vscode.Uri | undefined, file: vscode.Uri, ws: vscode.WorkspaceFolder | undefined): IHistorySettings {
 
         // for now no ressource configurations
         // let config = vscode.workspace.getConfiguration('local-history', file),
         let config = vscode.workspace.getConfiguration('local-history'),
             enabled = <EHistoryEnabled>config.get('enabled'),
             exclude =  <string[]>config.get('exclude'),
-            historyPath,
-            absolute,
+            historyPath: string | null | undefined,
+            absolute = false,
             message = '';
 
         if (typeof enabled === 'boolean')
@@ -127,15 +127,17 @@ export class HistorySettings {
                 // ${workspaceFolder: name} => workspace find by name
                 // ${workspaceFolder: index} => workspace find by index
                 const match = historyPath.match(/\${workspaceFolder(?:\s*:\s*(.*))?}/i);
-                let historyWS: vscode.Uri;
+                let historyWS: vscode.Uri | undefined;
                 if (match) {
-                    if (match.index > 1) {
+                    if ((match.index || 0) > 1) {
                         vscode.window.showErrorMessage(`\${workspaceFolder} must starts settings local-history.path ${historyPath}`);
                     } else {
                         const wsId = match[1];
                         if (wsId) {
-                            const find = vscode.workspace.workspaceFolders.find(
-                                wsf => Number.isInteger(wsId - 1) ? wsf.index === Number.parseInt(wsId, 10) : wsf.name === wsId);
+                            const wsIndex = Number.parseInt(wsId, 10);
+                            const workspaces = vscode.workspace.workspaceFolders || [];
+                            const find = workspaces.find(
+                                wsf => Number.isInteger(wsIndex) ? wsf.index === wsIndex : wsf.name === wsId);
                             if (find)
                                 historyWS = find.uri;
                             else
@@ -186,12 +188,13 @@ export class HistorySettings {
             dateLocale: <string>config.get('dateLocale') || undefined,
             exclude: <string[]>config.get('exclude') || ['**/.history/**','**/.vscode/**','**/node_modules/**','**/typings/**','**/out/**'],
             enabled: historyPath != null && historyPath !== '',
-            historyPath: historyPath,
-            absolute: absolute
+            historyPath: historyPath || '',
+            absolute: absolute || false
         };
     }
 
-    private pathIsInside(test, parent) {
-        return require('is-path-inside')(test, parent);
+    private pathIsInside(test: string, parent: string) {
+        const relative = path.relative(parent, test);
+        return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
     }
 }

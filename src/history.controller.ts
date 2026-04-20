@@ -4,8 +4,8 @@ import fs = require('fs');
 import path = require('path');
 import Timeout from './timeout';
 
-import glob = require('glob');
-import rimraf = require('rimraf');
+const { glob, globSync } = require('glob') as typeof import('glob');
+const { rimraf } = require('rimraf') as typeof import('rimraf');
 // import mkdirp = require('mkdirp');
 import anymatch = require('anymatch');
 
@@ -35,7 +35,7 @@ export interface IHistoryFileProperties {
 export class HistoryController {
 
     private settings: HistorySettings;
-    private saveBatch;
+    private saveBatch: Map<string, vscode.TextDocument>;
 
     private pattern = '_'+('[0-9]'.repeat(14));
     private regExp = /_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
@@ -53,7 +53,7 @@ export class HistoryController {
         return this.internalSave(document, true, new Timeout(1000));
     }
 
-    public saveRevision(document: vscode.TextDocument): Promise<vscode.TextDocument> {
+    public saveRevision(document: vscode.TextDocument): Promise<vscode.TextDocument | undefined> {
         return this.internalSave(document);
     }
 
@@ -83,14 +83,17 @@ export class HistoryController {
         return this.internalCompare(file1, file2, column, range);
     }
 
-    public findAllHistory(fileName: string, settings: IHistorySettings, noLimit?: boolean): Promise<IHistoryFileProperties> {
+    public findAllHistory(fileName: string, settings: IHistorySettings, noLimit?: boolean): Promise<IHistoryFileProperties | undefined> {
         return new Promise((resolve, reject) => {
 
             if (!settings.enabled)
-                resolve();
+                return resolve(undefined);
 
-            let fileProperties = this.decodeFile(fileName, settings, true);
-            this.getHistoryFiles(fileProperties && fileProperties.file, settings, noLimit)
+            const fileProperties = this.decodeFile(fileName, settings, true);
+            if (!fileProperties || !fileProperties.file)
+                return resolve(undefined);
+
+            this.getHistoryFiles(fileProperties.file, settings, noLimit)
                 .then(files => {
                     fileProperties.history = files;
                     resolve(fileProperties);
@@ -103,11 +106,11 @@ export class HistoryController {
         return new Promise((resolve, reject) => {
 
             if (!settings.enabled)
-                resolve();
+                return resolve([]);
 
             if (findFile)
                 this.findAllHistory(find, settings, noLimit)
-                    .then(fileProperties => resolve(fileProperties && fileProperties.history));
+                    .then(fileProperties => resolve(fileProperties?.history || []));
             else
                 this.getHistoryFiles(find, settings, noLimit)
                     .then(files => {
@@ -117,7 +120,7 @@ export class HistoryController {
             });
     }
 
-    public decodeFile(filePath: string, settings: IHistorySettings, history?: boolean): IHistoryFileProperties {
+    public decodeFile(filePath: string, settings: IHistorySettings, history?: boolean): IHistoryFileProperties | null {
         return this.internalDecodeFile(filePath, settings, history);
     }
 
@@ -141,13 +144,11 @@ export class HistoryController {
         });
     }
 
-    public deleteAll(fileHistoryPath: string) {
-        return new Promise((resolve, reject) => {
-            rimraf(fileHistoryPath, err => {
-                if (err)
-                    return reject(err);
-                return resolve();
-            });
+    public deleteAll(fileHistoryPath: string): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            rimraf(fileHistoryPath)
+                .then(() => resolve())
+                .catch(err => reject(err));
         });
     }
 
@@ -155,23 +156,26 @@ export class HistoryController {
         return new Promise<void>((resolve, reject) => {
             const settings = this.getSettings(vscode.Uri.file(fileName));
             const fileProperties = this.decodeFile(fileName, settings, true);
-            this.getHistoryFiles(fileProperties && fileProperties.file, settings, true)
+            if (!fileProperties || !fileProperties.file)
+                return resolve();
+
+            this.getHistoryFiles(fileProperties.file, settings, true)
                 .then((files) => this.internalDeleteHistory(files))
                 .then(() => resolve())
                 .catch((err) => reject());
         });
     }
 
-    public restore(fileName: vscode.Uri) {
+    public restore(fileName: vscode.Uri): Promise<void> | undefined {
         const src = fileName.fsPath;
         const settings = this.getSettings(vscode.Uri.file(src));
         const fileProperties = this.decodeFile(src, settings, false);
         if (fileProperties && fileProperties.file) {
-            return new Promise((resolve, reject) => {
+            return new Promise<void>((resolve, reject) => {
                 // Node v.8.5 has fs.copyFile
                 // const fnCopy = fs.copyFile || copyFile;
 
-                fs.copyFile(src, fileProperties.file, err => {
+                fs.copyFile(src, fileProperties.file, (err: NodeJS.ErrnoException | null) => {
                     if (err)
                         return reject(err);
                     return resolve();
@@ -181,7 +185,7 @@ export class HistoryController {
     }
 
     /* private */
-    private internalSave(document: vscode.TextDocument, isOriginal?: boolean, timeout?: Timeout): Promise<vscode.TextDocument> {
+    private internalSave(document: vscode.TextDocument, isOriginal?: boolean, timeout?: Timeout): Promise<vscode.TextDocument | undefined> {
 
         const settings = this.getSettings(document.uri);
 
@@ -199,7 +203,7 @@ export class HistoryController {
         return this.internalSaveDocument(document, settings, isOriginal, timeout);
     }
 
-    private timeoutPromise(f, delay, args): Promise<any> {
+    private timeoutPromise(f: (...args: any[]) => Promise<any>, delay: number, args: any[]): Promise<any> {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 f.apply(this, args)
@@ -209,7 +213,7 @@ export class HistoryController {
         });
     }
 
-    private internalSaveDocument(document: vscode.TextDocument, settings: IHistorySettings, isOriginal?: boolean, timeout?: Timeout): Promise<vscode.TextDocument> {
+    private internalSaveDocument(document: vscode.TextDocument, settings: IHistorySettings, isOriginal?: boolean, timeout?: Timeout): Promise<vscode.TextDocument | undefined> {
 
         return new Promise((resolve, reject) => {
 
@@ -226,9 +230,12 @@ export class HistoryController {
             if (isOriginal) {
                 // if already some files exists, don't save an original version (cause: the really original version is lost) !
                 // (Often the case...)
-                const files = glob.sync(revisionPattern, {cwd: settings.historyPath.replace(/\\/g, '/')});
+                const files = globSync(this.toGlobPath(revisionPattern), {
+                    absolute: true,
+                    windowsPathsNoEscape: true
+                });
                 if (files && files.length > 0)
-                    return resolve();
+                    return resolve(undefined);
 
                 if (timeout && timeout.isTimedOut()) {
                     vscode.window.showErrorMessage(`Timeout when internalSave: ' ${document.fileName}`);
@@ -288,8 +295,13 @@ export class HistoryController {
 
             // glob must use character /
             const historyPath = settings.historyPath.replace(/\\/g, '/');
-            glob(patternFilePath, {cwd: historyPath, absolute: true}, (err, files: string[]) => {
-                if (!err) {
+            const normalizedPattern = this.toGlobPath(patternFilePath);
+            const globOptions = path.isAbsolute(patternFilePath)
+                ? {absolute: true, windowsPathsNoEscape: true}
+                : {cwd: historyPath, absolute: true, windowsPathsNoEscape: true};
+
+            glob(normalizedPattern, globOptions)
+                .then((files: string[]) => {
                     if (files && files.length) {
                         // files are sorted in ascending order
                         // limitation
@@ -298,13 +310,12 @@ export class HistoryController {
                         // files are absolute
                     }
                     resolve(files);
-                } else
-                    reject(err);
-            });
+                })
+                .catch(err => reject(err));
         });
     }
 
-    private internalShowAll(action, editor: vscode.TextEditor, settings: IHistorySettings) {
+    private internalShowAll(action: (values: IHistoryActionValues, editor: vscode.TextEditor, settings?: IHistorySettings) => void, editor: vscode.TextEditor, settings: IHistorySettings) {
 
         if (!settings.enabled)
             return;
@@ -333,7 +344,7 @@ export class HistoryController {
                     properties = me.decodeFile(file, settings);
                     displayFiles.push({
                         description: relative,
-                        label: properties.date.toLocaleString(settings.dateLocale),
+                        label: properties.date ? properties.date.toLocaleString(settings.dateLocale) : path.basename(file),
                         filePath: file,
                         previous: files[index - 1]
                     });
@@ -370,9 +381,9 @@ export class HistoryController {
             return this.internalCompare(vscode.Uri.file(values.selected), vscode.Uri.file(values.previous));
     }
 
-    private internalOpen(filePath: vscode.Uri, column: number) {
+    private internalOpen(filePath: vscode.Uri, column?: vscode.ViewColumn) {
         if (filePath)
-            return new Promise((resolve, reject) => {
+            return new Promise<void>((resolve, reject) => {
                 vscode.workspace.openTextDocument(filePath)
                     .then(d=> {
                         vscode.window.showTextDocument(d, column)
@@ -393,7 +404,7 @@ export class HistoryController {
         }
     }
 
-    private internalDecodeFile(filePath: string, settings: IHistorySettings, history?: boolean): IHistoryFileProperties {
+    private internalDecodeFile(filePath: string, settings: IHistorySettings, history?: boolean): IHistoryFileProperties | null {
         let me = this,
             file, p,
             date,
@@ -454,7 +465,7 @@ export class HistoryController {
           return vscode.Uri.file(activeFilename);
 
         let fileProperties = this.decodeFile(activeFilename, settings, false);
-        if (fileProperties !== null)
+        if (fileProperties !== null && fileProperties.file)
             return vscode.Uri.file(fileProperties.file);
         else
             return vscode.Uri.file(activeFilename);
@@ -462,7 +473,7 @@ export class HistoryController {
 
     private internalDeleteFile(fileName: string): Promise<any> {
         return new Promise((resolve, reject) => {
-            fs.unlink(fileName, err => {
+            fs.unlink(fileName, (err: NodeJS.ErrnoException | null) => {
                 if (err)
                     // Not reject to avoid Promise.All to stop
                     return resolve({fileName: fileName, err: err});
@@ -530,7 +541,8 @@ export class HistoryController {
             return true;
         }
         catch (err) {
-            vscode.window.showErrorMessage(`Error with mkdir: '${err.toString()}' file '${fileName}`);
+            const error = err as Error;
+            vscode.window.showErrorMessage(`Error with mkdir: '${error.toString()}' file '${fileName}`);
             return false;
         }
     }
@@ -548,7 +560,8 @@ export class HistoryController {
             return true;
         }
         catch (err) {
-            vscode.window.showErrorMessage(`Error with copyFile: '${err.toString()} ${source} => ${target}`);
+            const error = err as Error;
+            vscode.window.showErrorMessage(`Error with copyFile: '${error.toString()} ${source} => ${target}`);
             return false;
         }
     }
@@ -561,6 +574,10 @@ export class HistoryController {
                 return dir.replace('\\', ':\\');
         } else
             return dir;
+    }
+
+    private toGlobPath(filePath: string) {
+        return filePath.replace(/\\/g, '/');
     }
 }
 
