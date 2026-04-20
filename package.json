@@ -1,9 +1,9 @@
 {
-    "name": "local-history",
+    "name": "local-history-v2",
     "displayName": "Local History",
     "description": "Save files into local history",
-    "publisher": "xyz",
-    "version": "1.8.1",
+    "publisher": "Van Dang",
+    "version": "2.0.0",
     "engines": {
         "vscode": "^1.116.0"
     },
