@@ -2,7 +2,7 @@
     "name": "local-history-v2",
     "displayName": "Local History",
     "description": "Save files into local history",
-    "publisher": "Van Dang",
+    "publisher": "van-dang",
     "version": "2.0.0",
     "engines": {
         "vscode": "^1.116.0"
